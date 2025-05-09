@@ -19,10 +19,10 @@ import MyMaterialsPage from '../pages/listings_management/MyMaterialsPage.jsx';
 
 import CreateListingPage from '../pages/listings_management/CreateListingPage.jsx';
 import OrderDetailPage from '../pages/orders_management/OrderDetailPage.jsx';
-import ForumsPage from '../pages/community/ForumsPage.jsx';
 import ForumThreadPage from '../pages/community/ForumThreadPage.jsx';
 
 import PrivateRoute from './PrivateRoute.jsx';
+import ForumsPage from "../pages/community/ForumsPage.jsx";
 
 const router = createBrowserRouter([
   {

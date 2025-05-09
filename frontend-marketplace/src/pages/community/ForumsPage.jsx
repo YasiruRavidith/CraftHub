@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import forumService from '../../services/forumService';
-import ForumCategoryCard from '../../components/community/ForumCategoryCard';
-import ThreadListItem from '../../components/community/ThreadListItem';
+import ForumCategoryCard from './ForumCategoryCard';
+import ThreadListItem from './ThreadListItem';
 import Loader from '../../components/common/Loader';
 import Button from '../../components/common/Button';
 import Pagination from '../../components/common/Pagination'; // Assuming you might paginate threads

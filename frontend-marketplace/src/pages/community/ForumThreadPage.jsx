@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import forumService from '../../services/forumService';
 import Loader from '../../components/common/Loader';
-import PostItem from '../../components/community/PostItem';
+import PostItem from './PostItem';
 import Button from '../../components/common/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { useForm } from 'react-hook-form'; // For reply form

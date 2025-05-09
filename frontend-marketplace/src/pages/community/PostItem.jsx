@@ -2,7 +2,7 @@
 import React from 'react';
 import { formatDateTime } from '../../utils/formatters';
 import { useAuth } from '../../contexts/AuthContext';
-import Button from '../common/Button';
+import Button from '../../components/common/Button';
 
 const PostItem = ({ post, onEdit, onDelete }) => {
   const { user } = useAuth();

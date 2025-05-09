@@ -46,7 +46,7 @@ const RegisterForm = () => {
   ];
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-gray-950">
       {apiError && <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{apiError}</p>}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
