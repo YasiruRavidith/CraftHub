@@ -1,16 +1,13 @@
-# apps/accounts/urls.py
-from django.urls import path
-from .views import RegisterView, UserDetailView
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import RegisterView, CustomAuthTokenLoginView, UserProfileViewSet, UserDetailView
+
+router = DefaultRouter()
+router.register(r'profiles', UserProfileViewSet, basename='profile') # e.g., /api/v1/accounts/profiles/me/ or /api/v1/accounts/profiles/<pk>/
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='auth_register'),
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
-    path('me/', UserDetailView.as_view(), name='user_detail'), # Get current user details
+    path('register/', RegisterView.as_view(), name='account_register'),
+    path('login/', CustomAuthTokenLoginView.as_view(), name='account_login'),
+    path('users/me/', UserDetailView.as_view(), name='user-detail-me'), # For current user details
+    path('', include(router.urls)),
 ]

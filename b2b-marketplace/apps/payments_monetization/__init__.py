@@ -1,0 +1,1 @@
+default_app_config = 'apps.payments_monetization.apps.PaymentsMonetizationConfig'

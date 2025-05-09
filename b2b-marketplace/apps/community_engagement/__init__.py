@@ -1,0 +1,1 @@
+default_app_config = 'apps.community_engagement.apps.CommunityEngagementConfig'

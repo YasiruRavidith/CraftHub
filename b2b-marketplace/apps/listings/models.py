@@ -1,87 +1,170 @@
-# apps/listings/models.py
 from django.db import models
-from django.conf import settings # To get CustomUser model
-from apps.accounts.models import UserProfile # To link listings to sellers/designers through profiles
-                                             # or directly link to settings.AUTH_USER_MODEL
+from django.conf import settings
+from django.utils.text import slugify
+from apps.core.models import AbstractBaseModel # Assuming you'll create this in core/models.py
 
 
-class Material(models.Model):
-    FABRIC_TYPE_CHOICES = [
-        ('COTTON', 'Cotton'),
-        ('SILK', 'Silk'),
-        ('WOOL', 'Wool'),
-        ('LINEN', 'Linen'),
-        ('POLYESTER', 'Polyester'),
-        ('RAYON', 'Rayon'),
-        ('DENIM', 'Denim'),
-        # ... Add more choices
-        ('OTHER', 'Other'),
-    ]
+# It's good practice to have a generic base model for timestamps, etc.
+# If core.models.AbstractBaseModel doesn't exist yet, you can define created_at/updated_at directly
+# or define AbstractBaseModel in this file temporarily.
+# For now, let's assume AbstractBaseModel will have created_at and updated_at.
+# If not using core.AbstractBaseModel, add:
+# created_at = models.DateTimeField(auto_now_add=True)
+# updated_at = models.DateTimeField(auto_now=True)
+# to each model.
 
-    seller = models.ForeignKey(
-        settings.AUTH_USER_MODEL, # Best to link directly to the User model
-        on_delete=models.CASCADE,
-        related_name='materials_listed',
-        # Optional: limit_choices_to={'profile__user_type': UserProfile.USER_TYPE_CHOICES[0][0]} # 'SELLER'
-        # The limit_choices_to in ForeignKey is tricky with dynamic model attributes
-        # It's often better to enforce this logic in forms/serializers/views
+class Category(AbstractBaseModel):
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    parent_category = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='subcategories')
+    # Add image for category if needed
+    # image = models.ImageField(upload_to='category_images/', blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "Categories"
+        ordering = ['name']
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+class Tag(AbstractBaseModel):
+    name = models.CharField(max_length=50, unique=True)
+    slug = models.SlugField(max_length=60, unique=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+class Certification(AbstractBaseModel):
+    name = models.CharField(max_length=200)
+    issuing_body = models.CharField(max_length=200)
+    reference_number = models.CharField(max_length=100, blank=True, null=True)
+    valid_from = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    certificate_file = models.FileField(upload_to='certifications/', blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.issuing_body})"
+
+class BaseListing(AbstractBaseModel):
+    """
+    Abstract base model for common fields in Material and Design.
+    """
+    name = models.CharField(max_length=255) # For Material name or Design title
+    slug = models.SlugField(max_length=270, unique=True, blank=True, editable=False)
+    description = models.TextField()
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name="%(class)s_listings")
+    tags = models.ManyToManyField(Tag, blank=True, related_name="%(class)s_listings")
+    is_active = models.BooleanField(default=True) # Whether the listing is visible
+    is_verified = models.BooleanField(default=False) # Admin verified (optional)
+    main_image = models.ImageField(upload_to='listings/%(class)s_main_images/', blank=True, null=True)
+    # Consider a separate model for multiple images if needed:
+    # additional_images = models.JSONField(blank=True, null=True) # Store list of image paths or use a related model
+    certifications = models.ManyToManyField(Certification, blank=True)
+
+    class Meta:
+        abstract = True
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name)
+            # Ensure slug is unique
+            slug = base_slug
+            counter = 1
+            while type(self).objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class Material(BaseListing):
+    UNIT_CHOICES = (
+        ('m', 'Meter'),
+        ('kg', 'Kilogram'),
+        ('sqm', 'Square Meter'),
+        ('pcs', 'Pieces'),
+        ('yard', 'Yard'),
+        ('lb', 'Pound'),
     )
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    fabric_type = models.CharField(max_length=50, choices=FABRIC_TYPE_CHOICES, default='OTHER')
-    quantity_available = models.DecimalField(max_digits=10, decimal_places=2) # e.g., in meters or kg
-    unit_of_measurement = models.CharField(max_length=20, default='meters') # meters, yards, kg, pieces
+    seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='materials_listed', limit_choices_to={'user_type__in': ['seller', 'manufacturer']})
     price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
-    min_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1.00)
-    region_available = models.CharField(max_length=100, blank=True)
-    # Certifications (Consider a separate ManyToMany model for certifications later for complexity)
-    certifications = models.CharField(max_length=255, blank=True, help_text="e.g., GOTS, Oeko-Tex, comma-separated")
-    image = models.ImageField(upload_to='materials_images/', blank=True, null=True)
-    is_active = models.BooleanField(default=True) # To allow sellers to temporarily delist
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    unit = models.CharField(max_length=10, choices=UNIT_CHOICES, default='m')
+    minimum_order_quantity = models.PositiveIntegerField(default=1)
+    stock_quantity = models.PositiveIntegerField(null=True, blank=True) # Null if made-to-order
+    sku = models.CharField(max_length=100, blank=True, null=True, unique=True) # Stock Keeping Unit
+
+    # Material-specific attributes
+    composition = models.CharField(max_length=255, blank=True, null=True) # e.g., "100% Cotton", "70% Polyester, 30% Viscose"
+    weight_gsm = models.PositiveIntegerField(null=True, blank=True) # Grams per Square Meter
+    width_cm = models.PositiveIntegerField(null=True, blank=True) # Width in centimeters
+    country_of_origin = models.CharField(max_length=100, blank=True, null=True)
+    lead_time_days = models.PositiveIntegerField(null=True, blank=True, help_text="Estimated lead time in days for production/sourcing if not in stock.")
+    additional_images = models.JSONField(blank=True, null=True, default=list) # For multiple images
+
+    average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00, null=True, blank=True)
+    review_count = models.PositiveIntegerField(default=0, null=True, blank=True)
+
 
     def __str__(self):
-        return f"{self.name} by {self.seller.username}"
-
-    # Basic permission check idea - implement thoroughly in views/serializers
-    def can_be_modified_by(self, user):
-        return self.seller == user or user.is_staff
+        return f"{self.name} (by {self.seller.username})"
 
 
-class Design(models.Model):
-    designer = models.ForeignKey(
-        settings.AUTH_USER_MODEL, # Link directly to the User model
-        on_delete=models.CASCADE,
-        related_name='designs_created',
-        # Optional: limit_choices_to={'profile__user_type': UserProfile.USER_TYPE_CHOICES[1][0]} # 'DESIGNER'
-    )
+class Design(BaseListing):
+    # Renaming 'name' field from BaseListing to 'title' for clarity in Design context
     title = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    # Tags (Consider using django-taggit or a ManyToManyField to a Tag model for more advanced tagging)
-    tags = models.CharField(max_length=255, blank=True, help_text="Comma-separated styles, themes (e.g., floral, abstract, modern)")
-    # For 3D, Tech Packs consider FileFields. For this example, main design image and details.
-    design_image = models.ImageField(upload_to='designs_images/', blank=True, null=True)
-    # tech_pack_file = models.FileField(upload_to='tech_packs/', blank=True, null=True)
-    customization_preferences = models.TextField(blank=True, help_text="e.g., Colors can be changed, open to size variations.")
-    licensing_options = models.CharField(max_length=50, default='EXCLUSIVE', choices=[('EXCLUSIVE', 'Exclusive'), ('NON_EXCLUSIVE', 'Non-Exclusive'), ('ROYALTY', 'Royalty-based')])
-    price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="One-time purchase price or license fee base.")
-    is_active = models.BooleanField(default=True) # To allow designers to temporarily delist
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    designer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='designs_listed', limit_choices_to={'user_type__in': ['designer']})
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Price for the design or license.")
+    licensing_terms = models.TextField(blank=True, null=True, help_text="Details about licensing, e.g., exclusive, non-exclusive, usage rights.")
+    # design_files = models.FileField(upload_to='designs/files/', blank=True, null=True, help_text="Main design file (e.g., AI, PSD, CAD). Consider security.")
+    # Using thumbnail_image instead of main_image from BaseListing if semantically better
+    thumbnail_image = models.ImageField(upload_to='designs/thumbnails/', blank=True, null=True)
+    design_files_link = models.URLField(blank=True, null=True, help_text="Link to secure storage for design files (e.g., for after purchase)")
+
+    # Override name from BaseListing to use title
+    @property
+    def name(self):
+        return self.title
+
+    @name.setter
+    def name(self, value):
+        self.title = value
+
+    def save(self, *args, **kwargs):
+        if not self.slug: # Ensure slug is based on title
+            base_slug = slugify(self.title)
+            slug = base_slug
+            counter = 1
+            # Check Design model for slug uniqueness
+            while Design.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super(Design, self).save(*args, **kwargs) # Call Design's super, not BaseListing's directly here
 
     def __str__(self):
-        return f"{self.title} by {self.designer.username}"
+        return f"{self.title} (by {self.designer.username})"
 
-    def can_be_modified_by(self, user):
-        return self.designer == user or user.is_staff
+class TechPack(AbstractBaseModel):
+    design = models.ForeignKey(Design, on_delete=models.CASCADE, related_name='tech_packs')
+    file = models.FileField(upload_to='designs/tech_packs/')
+    version = models.CharField(max_length=50, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True) # Overriding from AbstractBaseModel if needed, or remove if it's already there.
 
-# Advanced Tip (For Later):
-# class Certification(models.Model):
-#     name = models.CharField(max_length=100, unique=True)
-#     description = models.TextField(blank=True)
-# Then Material model: certifications = models.ManyToManyField(Certification, blank=True)
-
-# class Tag(models.Model):
-#     name = models.CharField(max_length=50, unique=True)
-# Then Design model: tags = models.ManyToManyField(Tag, blank=True)
+    def __str__(self):
+        return f"Tech Pack for {self.design.title} (v: {self.version or 'N/A'})"

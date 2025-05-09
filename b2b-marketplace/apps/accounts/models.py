@@ -1,57 +1,58 @@
-# apps/accounts/models.py
-from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.models import AbstractUser
+from django.conf import settings
 
 class CustomUser(AbstractUser):
-    # You can add common fields here if needed for all users
-    # For example, a default phone number field if all users have one
-    email = models.EmailField(_('email address'), unique=True) # Make email unique for login
+    USER_TYPE_CHOICES = (
+        ('buyer', 'Buyer'),
+        ('seller', 'Seller'), # Can list materials
+        ('designer', 'Designer'), # Can list designs
+        ('manufacturer', 'Manufacturer'), # Can take orders, provide quotes
+        ('admin', 'Administrator'), # Platform admin
+    )
+    email = models.EmailField(unique=True) # Make email the unique identifier
+    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default='buyer')
 
-    # Remove username field requirements if you login with email
-    # USERNAME_FIELD = 'email'
-    # REQUIRED_FIELDS = [] # 'username' will not be required then
+    # USERNAME_FIELD = 'email' # If you want to login with email
+    # REQUIRED_FIELDS = ['username'] # Adjust if email is USERNAME_FIELD
 
     def __str__(self):
-        return self.email # Or self.username if you keep it
+        return self.username
 
-
-class UserProfile(models.Model):
-    USER_TYPE_CHOICES = [
-        ('SELLER', 'Material Seller'),
-        ('DESIGNER', 'Cloth Designer'),
-        ('MANUFACTURER', 'Garment Manufacturer'),
-        ('BUYER', 'Cloth Shop/Buyer'),
-    ]
-
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='profile')
-    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
-    # Add fields specific to different user profiles later, or use Proxy models / Multi-table inheritance
-    # For now, this distinguishes roles. Example:
+class Profile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     company_name = models.CharField(max_length=255, blank=True, null=True)
-    contact_number = models.CharField(max_length=20, blank=True, null=True)
-    address = models.TextField(blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    address_line1 = models.CharField(max_length=255, blank=True, null=True)
+    address_line2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    state_province = models.CharField(max_length=100, blank=True, null=True)
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+    # Seller specific fields (can be moved to a SellerProfile model if it grows complex)
+    seller_verified = models.BooleanField(default=False)
+    # Designer specific fields
+    design_portfolio_url = models.URLField(blank=True, null=True)
+    # Manufacturer specific fields
+    manufacturing_capabilities = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00, null=True, blank=True)
+    review_count = models.PositiveIntegerField(default=0, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.user.email} - {self.get_user_type_display()}"
+        return f"{self.user.username}'s Profile"
 
-# Consider adding signals to automatically create a UserProfile when a CustomUser is created
-# apps/accounts/signals.py
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from .models import CustomUser, UserProfile
-
-@receiver(post_save, sender=CustomUser)
-def create_or_update_user_profile(sender, instance, created, **kwargs):
-    if created:
-        UserProfile.objects.create(user=instance)
-    # For existing users, instance.profile already exists and can be accessed.
-    # If you need to update, you'd access instance.profile.save() after changes.
-
-# And update apps/accounts/apps.py to load signals
-# class AccountsConfig(AppConfig):
-#     default_auto_field = 'django.db.models.BigAutoField'
-#     name = 'apps.accounts'
+# If you need more distinct profile types, you could do:
+# class SellerProfile(models.Model):
+#     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, primary_key=True)
+#     # seller specific fields
 #
-#     def ready(self):
-#         import apps.accounts.signals # novermin
+# class DesignerProfile(models.Model):
+#     profile = models.OneToOneField(Profile, on_delete=models.CASCADE, primary_key=True)
+#     # designer specific fields

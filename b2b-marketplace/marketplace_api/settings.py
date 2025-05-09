@@ -1,6 +1,9 @@
 import os
-
+from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,15 +35,24 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_filters',
 
     # Your apps (add as you create them)
-    'apps.accounts', # We will create this next
     'apps.accounts.apps.AccountsConfig',
-    'apps.listings.apps.ListingsConfig', 
+    'apps.listings.apps.ListingsConfig',
+    'apps.orders.apps.OrdersConfig',
+    'apps.collaborations.apps.CollaborationsConfig',
+    'apps.reviews_ratings.apps.ReviewsRatingsConfig',
+    'apps.community_engagement.apps.CommunityEngagementConfig',
+    'apps.payments_monetization.apps.PaymentsMonetizationConfig',
+    'apps.analytics_ai.apps.AnalyticsAiConfig', # Assuming you'll create an AppConfig
+    #'core.apps.CoreConfig',
+    'apps.core.apps.CoreConfig',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware', # Add this
     'django.middleware.common.CommonMiddleware',
@@ -59,6 +71,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -116,6 +129,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles_collected'
+STATICFILES_DIRS = [
+    BASE_DIR / "static", # If you have project-level static files
+]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -127,10 +145,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': ( # Make API accessible by default for now, change later
-        'rest_framework.permissions.AllowAny', # Consider 'IsAuthenticatedOrReadOnly' or stricter later
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly', # Consider 'IsAuthenticatedOrReadOnly' or stricter later
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
@@ -140,8 +159,8 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     # You can customize token lifetimes here if needed
     # from datetime import timedelta
-    # 'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    # 'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
 CORS_ALLOWED_ORIGINS = [
@@ -150,3 +169,17 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
