@@ -55,8 +55,8 @@ const Navbar = () => {
     // Using encodeURIComponent for the name character, just in case, though usually not needed for a single char.
 
   return (
-    <nav className="bg-linear-to-bl from-violet-500 to-fuchsia-500 shadow-lg sticky top-0 z-50 ">
-      <div className="container-mx mt-3 mb-3">
+    <nav className="bg-gray-900 shadow-lg sticky top-0 z-50 ">
+      <div className="container-mx mt-2 mb-2">
         <div className="flex items-center justify-between h-16">
           <div className="flex-shrink-0 ml-5 text-amber-300">
             <Link to="/" className="text-2xl font-bold text-white hover:text-orange-200 transition-colors">
