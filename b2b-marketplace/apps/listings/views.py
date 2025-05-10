@@ -62,42 +62,112 @@ class CertificationViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'issuing_body']
 
 class MaterialViewSet(viewsets.ModelViewSet):
-    queryset = Material.objects.filter(is_active=True).select_related('seller__profile', 'category').prefetch_related('tags', 'certifications')
+    """
+    API endpoint that allows materials to be viewed or edited.
+    - General listing shows active materials.
+    - Filtering by `seller__username=<current_user_username>` shows all of that user's materials (active/inactive).
+    - Admins can see all materials.
+    """
     serializer_class = MaterialSerializer
-    permission_classes = [IsSellerOrAdminOrReadOnly]
+    permission_classes = [IsSellerOrAdminOrReadOnly] # Adjust as needed for list vs. detail vs. owner
     lookup_field = 'slug'
+
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
-        'category__slug': ['exact'],
-        'seller__username': ['exact'],
+        'category__slug': ['exact', 'in'],
+        'seller__username': ['exact'], # Used by frontend for "My Materials"
         'tags__slug': ['in'],
-        'country_of_origin': ['exact'],
-        'price_per_unit': ['gte', 'lte'],
+        'country_of_origin': ['exact', 'in'],
+        'price_per_unit': ['gte', 'lte', 'exact'],
         'is_verified': ['exact'],
+        'is_active': ['exact'], # Allows explicit filtering by active status
+        'unit': ['exact', 'in'],
+        # Add other fields from Material model you want to filter on
+        # 'composition': ['icontains'], # Example for text search within field
     }
-    search_fields = ['name', 'description', 'composition', 'seller__username', 'category__name', 'tags__name']
-    ordering_fields = ['name', 'price_per_unit', 'created_at', 'stock_quantity']
-    ordering = ['-created_at']
-
-    def perform_create(self, serializer):
-        # Ensure the logged-in user is set as the seller
-        if self.request.user.user_type not in ['seller', 'manufacturer', 'admin']:
-            raise permissions.PermissionDenied("You must be a seller or manufacturer to list materials.")
-        serializer.save(seller=self.request.user)
+    search_fields = [
+        'name', 
+        'description', 
+        'composition', 
+        'sku',
+        'seller__username', # Search by seller's username
+        'category__name',   # Search by category name
+        'tags__name'        # Search by tag names
+    ]
+    ordering_fields = ['name', 'price_per_unit', 'created_at', 'updated_at', 'stock_quantity', 'average_rating']
+    ordering = ['-created_at'] # Default ordering
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        # Allow admins to see inactive listings
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return Material.objects.all().select_related('seller__profile', 'category').prefetch_related('tags', 'certifications')
+        """
+        Dynamically determines the queryset based on the user.
+        - Admins see all materials.
+        - Authenticated users requesting their own materials (via `seller__username` query param)
+          see all their materials (active and inactive).
+        - Other requests (anonymous or general search by authenticated users) see only active materials.
+        The `DjangoFilterBackend` will further apply filters specified in `filterset_fields`
+        to the queryset returned by this method.
+        """
+        user = self.request.user
         
-        # If a specific user wants to see their own (in)active listings
-        owner_filter = self.request.query_params.get('owner', None)
-        if owner_filter == 'me' and self.request.user.is_authenticated:
-            return Material.objects.filter(seller=self.request.user).select_related('seller__profile', 'category').prefetch_related('tags', 'certifications')
-            
-        return qs
+        # Base queryset including necessary related data for performance
+        base_queryset = Material.objects.all().select_related(
+            'seller__profile', 
+            'category'
+        ).prefetch_related(
+            'tags', 
+            'certifications'
+        )
 
+        # Admins can see everything, filters will apply on top of this
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            return base_queryset
+
+        # Check if the request is attempting to filter by the current user's username
+        requested_seller_username = self.request.query_params.get('seller__username', None)
+
+        if user.is_authenticated and requested_seller_username == user.username:
+            # User is requesting their own materials.
+            # DjangoFilterBackend will apply the 'seller__username' filter to base_queryset.
+            # No need to filter by 'is_active' here, so they see all their own items.
+            # Also, no need to filter by seller=user here, as DjangoFilterBackend will do it.
+            return base_queryset
+        else:
+            # For anonymous users or general searches (not specifically for 'my materials')
+            # only show active materials. DjangoFilterBackend will apply other filters on top.
+            return base_queryset.filter(is_active=True)
+
+    def perform_create(self, serializer):
+        """
+        Set the seller to the currently authenticated user when creating a new material.
+        """
+        if not self.request.user.is_authenticated:
+            # This should ideally be caught by permission_classes first
+            raise permissions.PermissionDenied("Authentication required to create a material.")
+            
+        if self.request.user.user_type not in ['seller', 'manufacturer', 'admin']:
+            raise permissions.PermissionDenied("You must be a seller, manufacturer, or admin to list materials.")
+        
+        # Save the material instance with the current user as the seller
+        # The 'seller_id' field in the serializer is marked as required=False,
+        # so it doesn't need to be in the request payload.
+        serializer.save(seller=self.request.user)
+
+    def perform_update(self, serializer):
+        """
+        Handle updates. The permission class (IsSellerOrAdminOrReadOnly)
+        should ensure only the owner or admin can update.
+        """
+        # You could add extra logic here if needed before saving.
+        # For example, if certain fields can only be updated by admins.
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Handle deletion. The permission class should ensure only owner or admin can delete.
+        """
+        # You could add extra logic here (e.g., soft delete by setting is_active=False)
+        # For a hard delete:
+        instance.delete()
 
 class DesignViewSet(viewsets.ModelViewSet):
     queryset = Design.objects.filter(is_active=True).select_related('designer__profile', 'category').prefetch_related('tags', 'certifications', 'tech_packs')

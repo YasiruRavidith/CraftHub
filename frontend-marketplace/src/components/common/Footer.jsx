@@ -1,32 +1,46 @@
+// src/components/layout/Footer.jsx
 import React from 'react';
+import { Link } from 'react-router-dom';
+// import { FaFacebookF, FaTwitter, FaLinkedinIn, FaInstagram } from 'react-icons/fa'; // Example using react-icons
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-800 text-gray-400 py-8">
+    <footer className="bg-violet-950 text-slate-300 pt-16 pb-8">
       <div className="container-mx">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          <div>
-            <h5 className="text-lg font-semibold text-white mb-3">B2BMarket</h5>
-            <p className="text-sm">Connecting the garment industry.</p>
-          </div>
-          <div>
-            <h5 className="text-lg font-semibold text-white mb-3">Quick Links</h5>
-            <ul className="space-y-2 text-sm">
-              <li><a href="/about" className="hover:text-white">About Us</a></li>
-              <li><a href="/contact" className="hover:text-white">Contact</a></li>
-              <li><a href="/faq" className="hover:text-white">FAQ</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-lg font-semibold text-white mb-3">Legal</h5>
-            <ul className="space-y-2 text-sm">
-              <li><a href="/terms" className="hover:text-white">Terms of Service</a></li>
-              <li><a href="/privacy" className="hover:text-white">Privacy Policy</a></li>
-            </ul>
+        <div className="flex flex-col items-center mb-10">
+          <Link to="/" className="text-3xl font-bold text-white mb-4">
+            B2BMarket
+          </Link>
+          <p className="text-center max-w-md text-sm mb-6">
+            Your central hub for sourcing, design, and manufacturing in the apparel industry.
+          </p>
+          {/* Social Media Links */}
+          <div className="flex space-x-6 mb-8">
+            {/* Example with react-icons. Install: npm install react-icons */}
+            {/* <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="Facebook"><FaFacebookF /></a>
+            <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="Twitter"><FaTwitter /></a>
+            <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="LinkedIn"><FaLinkedinIn /></a>
+            <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="Instagram"><FaInstagram /></a> */}
+            <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="Facebook">FB</a>
+            <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="Twitter">TW</a>
+            <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="LinkedIn">LI</a>
+            <a href="#" className="text-slate-400 hover:text-teal-300 text-xl" aria-label="Instagram">IG</a>
           </div>
         </div>
-        <div className="border-t border-gray-700 pt-8 text-center text-sm">
-          <p>© {new Date().getFullYear()} B2B Garment Marketplace. All rights reserved.</p>
+
+        {/* Navigation Links */}
+        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-3 mb-10 text-sm">
+          <Link to="/about" className="hover:text-teal-300 transition-colors">About Us</Link>
+          <Link to="/materials" className="hover:text-teal-300 transition-colors">Browse Materials</Link>
+          <Link to="/designs" className="hover:text-teal-300 transition-colors">Discover Designs</Link>
+          <Link to="/contact" className="hover:text-teal-300 transition-colors">Contact</Link>
+          <Link to="/faq" className="hover:text-teal-300 transition-colors">FAQ</Link>
+          <Link to="/terms" className="hover:text-teal-300 transition-colors">Terms of Service</Link>
+          <Link to="/privacy" className="hover:text-teal-300 transition-colors">Privacy Policy</Link>
+        </nav>
+
+        <div className="border-t border-slate-700 pt-8 text-center text-xs text-slate-500">
+          <p>© {new Date().getFullYear()} B2B Garment Marketplace. A Fictional Company.</p>
         </div>
       </div>
     </footer>

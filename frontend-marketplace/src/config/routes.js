@@ -9,6 +9,7 @@ export const ROUTE_PATHS = {
   MATERIAL_DETAIL: '/materials/:slug', // Use :slug or :id
   DESIGNS_SEARCH: '/designs',
   DESIGN_DETAIL: '/designs/:slug',
+  DASHBOARD_MY_DESIGNS: '/dashboard/my-designs', // If you want it explicit
 
   DASHBOARD: '/dashboard',
   DASHBOARD_PROFILE: '/dashboard/profile',

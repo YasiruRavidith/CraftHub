@@ -43,7 +43,7 @@ const createMaterial = async (materialData) => {
 const getDesigns = async (params = {}) => {
   try {
     const response = await apiClient.get('/listings/designs/', { params });
-    return response.data;
+    return response.data; // Expects DRF paginated response
   } catch (error) {
     console.error('Error fetching designs:', error.response?.data || error.message);
     throw error;
@@ -60,6 +60,21 @@ const getDesignBySlug = async (slug) => {
   }
 };
 
+const createDesign = async (designData) => {
+  // designData will be FormData if images are included
+  try {
+    let headers = {};
+    if (!(designData instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+    const response = await apiClient.post('/listings/designs/', designData, { headers });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating design:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 // Add createDesign, updateDesign, deleteDesign
 
 export default {
@@ -68,4 +83,5 @@ export default {
   createMaterial,
   getDesigns,
   getDesignBySlug,
+  createDesign
 };

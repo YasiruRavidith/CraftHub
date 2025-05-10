@@ -1,72 +1,109 @@
 // src/pages/listings_management/CreateListingPage.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'; // Added useMemo
 import { useNavigate, useLocation } from 'react-router-dom';
 import ListingForm from '../../components/listings/ListingForm';
-import productService from '../../services/productService'; // Assuming createMaterial and createDesign
+import productService from '../../services/productService';
 import { useAuth } from '../../contexts/AuthContext';
+import Button from '../../components/common/Button';
 
 const CreateListingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  
   const queryParams = new URLSearchParams(location.search);
-  const listingType = queryParams.get('type') || 'material'; // Default to material
+  let initialListingType = queryParams.get('type') || 'material';
+  if (!['material', 'design'].includes(initialListingType)) {
+    initialListingType = 'material';
+  }
+  // No need for useState for listingType if it's determined by query param and doesn't change on this page
+  const listingType = initialListingType; 
 
   const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formApiError, setFormApiError] = useState('');
+
+  // For a create form, initialData is typically empty or has some defaults
+  // Memoize it to ensure a stable reference is passed to ListingForm
+  const initialFormData = useMemo(() => {
+    if (listingType === 'material') {
+      return {
+        unit: 'm', // Default unit for material
+        minimum_order_quantity: 1,
+        // Add other sensible defaults for material creation
+      };
+    } else if (listingType === 'design') {
+      return {
+        // Defaults for design creation
+      };
+    }
+    return {};
+  }, [listingType]); // Re-memoize if listingType could change (though it doesn't in this component's current logic)
 
   const handleCreateListing = async (formData) => {
+    // ... (rest of your handleCreateListing logic remains the same) ...
     setIsLoading(true);
-    setFormError('');
+    setFormApiError('');
     try {
       let createdListing;
       if (listingType === 'material') {
-        // The backend expects seller_id. It's automatically set via perform_create in MaterialViewSet.
-        // So we don't need to explicitly pass user.id if the backend sets it based on request.user.
-        // If your serializer requires seller_id, you'd append it to formData here.
-        // formData.append('seller_id', user.id); // Only if DRF serializer needs it explicitly
         createdListing = await productService.createMaterial(formData);
-        navigate(`/materials/${createdListing.slug}`); // Or to MyMaterialsPage
+        navigate(`/materials/${createdListing.slug}`);
       } else if (listingType === 'design') {
-        // formData.append('designer_id', user.id); // Only if DRF serializer needs it explicitly
-        // createdListing = await productService.createDesign(formData); // Implement this service
-        // navigate(`/designs/${createdListing.slug}`);
-        setFormError('Design creation not yet implemented.'); // Placeholder
+        setFormApiError('Design creation not yet implemented.');
         setIsLoading(false);
         return;
       } else {
         throw new Error('Invalid listing type');
       }
-      // console.log('Listing created:', createdListing);
     } catch (error) {
-      let errorMessage = `Failed to create ${listingType}.`;
+      let errorMessage = `Failed to create ${listingType}. `;
       if (error.response && error.response.data) {
-        errorMessage = Object.entries(error.response.data)
-          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+        const errorData = error.response.data;
+        errorMessage += Object.entries(errorData)
+          .map(([key, value]) => {
+            const prettyKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            return `${prettyKey}: ${Array.isArray(value) ? value.join(', ') : value}`;
+          })
           .join('; ');
       } else if (error.message) {
-        errorMessage = error.message;
+        errorMessage += error.message;
       }
-      setFormError(errorMessage);
+      setFormApiError(errorMessage);
       console.error(`Create ${listingType} error:`, error);
     }
     setIsLoading(false);
   };
 
-  if (!user || (listingType === 'material' && !['seller', 'manufacturer', 'admin'].includes(user.user_type)) || (listingType === 'design' && !['designer', 'admin'].includes(user.user_type)) ) {
+  // ... (authorization checks remain the same) ...
+  const canCreateMaterial = user && ['seller', 'manufacturer', 'admin'].includes(user.user_type);
+  const canCreateDesign = user && ['designer', 'admin'].includes(user.user_type);
+
+  let canCreateCurrentType = false;
+  if (listingType === 'material') canCreateCurrentType = canCreateMaterial;
+  if (listingType === 'design') canCreateCurrentType = canCreateDesign;
+
+  if (!user) {
+    return <p className="text-red-500 p-4">Please log in to create a listing.</p>;
+  }
+  if (!canCreateCurrentType) {
     return <p className="text-red-500 p-4">You are not authorized to create this type of listing.</p>;
   }
 
+
   return (
-    <div className="max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-xl">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">
-        Create New {listingType === 'material' ? 'Material' : 'Design'}
-      </h1>
-      {formError && <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md mb-4">{formError}</p>}
+    <div className="max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-xl text-gray-950">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">
+          Create New {listingType === 'material' ? 'Material' : 'Design'}
+        </h1>
+      </div>
+      
       <ListingForm
         onSubmitForm={handleCreateListing}
+        initialData={initialFormData} // Pass memoized initialData
         listingType={listingType}
         isLoading={isLoading}
+        apiFormError={formApiError}
       />
     </div>
   );

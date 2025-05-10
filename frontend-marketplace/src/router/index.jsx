@@ -1,72 +1,116 @@
 // src/router/index.jsx
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
+// --- Layouts ---
 import MainLayout from '../layouts/MainLayout.jsx';
 import AuthLayout from '../layouts/AuthLayout.jsx';
-import DashboardLayout from '../layouts/DashboardLayout.jsx'; // Assuming this is created
+import DashboardLayout from '../layouts/DashboardLayout.jsx';
 
+// --- General Pages ---
 import HomePage from '../pages/HomePage.jsx';
 import LoginPage from '../pages/LoginPage.jsx';
 import RegisterPage from '../pages/RegisterPage.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
-import MaterialSearchPage from '../pages/MaterialSearchPage.jsx'; // Example
-// Dashboard Pages (placeholders for now)
-import UserProfilePage from '../pages/profile/UserProfilePage.jsx'; // Example path
-import MyOrdersPage from '../pages/orders_management/MyOrdersPage.jsx'; // Example path
-import SellerDashboardPage from '../pages/dashboards/SellerDashboardPage.jsx'; // Example
-import EditProfilePage from '../pages/profile/EditProfilePage.jsx';
-import MyMaterialsPage from '../pages/listings_management/MyMaterialsPage.jsx';
 
-import CreateListingPage from '../pages/listings_management/CreateListingPage.jsx';
-import OrderDetailPage from '../pages/orders_management/OrderDetailPage.jsx';
-import ForumThreadPage from '../pages/community/ForumThreadPage.jsx';
+// --- Listing (Product) Pages ---
+import MaterialSearchPage from '../pages/MaterialSearchPage.jsx';
+import MaterialDetailPage from '../pages/MaterialDetailPage.jsx'; // Assuming this exists or will be created
+import DesignSearchPage from '../pages/DesignSearchPage.jsx';
+import DesignDetailPage from '../pages/DesignDetailPage.jsx';   // Assuming this exists or will be created
 
-import PrivateRoute from './PrivateRoute.jsx';
+// --- Community Pages ---
 import ForumsPage from "../pages/community/ForumsPage.jsx";
+import ForumThreadPage from '../pages/community/ForumThreadPage.jsx';
+// import UserPortfoliosPage from '../pages/community/UserPortfoliosPage.jsx'; // Placeholder
+
+// --- Dashboard Pages ---
+// Main Dashboards
+import SellerDashboardPage from '../pages/dashboards/SellerDashboardPage.jsx'; // Example default
+// import BuyerDashboardPage from '../pages/dashboards/BuyerDashboardPage.jsx';
+// import DesignerDashboardPage from '../pages/dashboards/DesignerDashboardPage.jsx';
+// import ManufacturerDashboardPage from '../pages/dashboards/ManufacturerDashboardPage.jsx';
+
+// Profile
+import UserProfilePage from '../pages/profile/UserProfilePage.jsx';
+import EditProfilePage from '../pages/profile/EditProfilePage.jsx';
+
+// Listings Management
+import MyMaterialsPage from '../pages/listings_management/MyMaterialsPage.jsx';
+import MyDesignsPage from '../pages/listings_management/MyDesignsPage.jsx'; // New
+import CreateListingPage from '../pages/listings_management/CreateListingPage.jsx';
+// import EditListingPage from '../pages/listings_management/EditListingPage.jsx'; // Placeholder
+
+// Orders Management
+import MyOrdersPage from '../pages/orders_management/MyOrdersPage.jsx';
+import OrderDetailPage from '../pages/orders_management/OrderDetailPage.jsx';
+// import CreateRFQPage from '../pages/orders_management/CreateRFQPage.jsx'; // Placeholder
+
+// --- Router Configuration ---
+import PrivateRoute from './PrivateRoute.jsx';
+// import { ROUTE_PATHS } from '../config/routes.js'; // Optional: Using string paths directly for now
 
 const router = createBrowserRouter([
   {
-    element: <MainLayout />,
+    element: <MainLayout />, // Wraps all public-facing pages
     children: [
       { path: '/', element: <HomePage /> },
       { path: 'materials', element: <MaterialSearchPage /> },
+      { path: 'materials/:slug', element: <MaterialDetailPage /> }, // Use :slug or :id
+      { path: 'designs', element: <DesignSearchPage /> },
+      { path: 'designs/:slug', element: <DesignDetailPage /> },   // Use :slug or :id
       { path: 'community/forums', element: <ForumsPage /> },
-      //{ path: 'community/forums/:categorySlug/:threadSlug', element: <ForumThreadPage /> },
       { path: 'community/threads/:threadSlug', element: <ForumThreadPage /> },
-      // { path: 'materials/:slug', element: <MaterialDetailPage /> },
-      // { path: 'designs', element: <DesignSearchPage /> },
-      // { path: 'designs/:slug', element: <DesignDetailPage /> },
-      // { path: 'community/forums', element: <ForumsPage /> },
-      // { path: 'community/forums/:threadSlug', element: <ForumThreadPage /> },
-      // { path: 'portfolios/:username', element: <UserPortfolioPage /> },
-      { path: '*', element: <NotFoundPage /> }, // Catch-all inside MainLayout
+      // Example for portfolios
+      // { path: 'portfolios/:username', element: <UserPortfoliosPage /> },
+      { path: '*', element: <NotFoundPage /> }, // Catch-all for unknown routes under MainLayout
     ],
   },
   {
-    path: '/auth',
+    path: '/auth', // Group for authentication pages
     element: <AuthLayout />,
     children: [
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
+      // { path: 'forgot-password', element: <ForgotPasswordPage /> },
     ],
   },
   {
-    path: '/dashboard',
+    path: '/dashboard', // Group for all authenticated dashboard sections
     element: <PrivateRoute><DashboardLayout /></PrivateRoute>,
     children: [
-      { index: true, element: <SellerDashboardPage /> }, // Example default dashboard
+      // Default dashboard page (can be user-type specific later)
+      { index: true, element: <SellerDashboardPage /> }, // Example: defaults to seller dashboard
+      
+      // Profile
       { path: 'profile', element: <UserProfilePage /> },
       { path: 'profile/edit', element: <EditProfilePage /> },
-      { path: 'my-orders', element: <MyOrdersPage /> },
+      
+      // Listings Management
       { path: 'my-materials', element: <MyMaterialsPage /> },
+      { path: 'my-designs', element: <MyDesignsPage /> }, // New
       { path: 'listings/create', element: <CreateListingPage /> },
+      // { path: 'listings/material/:slug/edit', element: <EditListingPage type="material" /> },
+      // { path: 'listings/design/:slug/edit', element: <EditListingPage type="design" /> },
+      
+      // Orders Management
+      { path: 'my-orders', element: <MyOrdersPage /> },
       { path: 'orders/:orderId', element: <OrderDetailPage /> },
-      // Add more role-specific routes if needed
-      // e.g. { path: 'my-materials', element: <PrivateRoute allowedUserTypes={['seller', 'manufacturer']}><MyMaterialsPage /></PrivateRoute> },
+      // { path: 'rfqs/create', element: <CreateRFQPage /> },
+
+      // Collaborations (Example placeholders)
+      // { path: 'projects', element: <CollaborationProjectsPage /> },
+      // { path: 'projects/:projectId', element: <ProjectDetailPage /> },
+
+      // Settings (Example placeholder)
+      // { path: 'settings', element: <SettingsPage /> },
+
+      // Add more dashboard sub-routes here based on user roles and features
+      // Example: An admin might have a different set of routes or a different index.
     ],
   },
-  // A top-level catch-all if no layout matches, or handle in MainLayout's *
-  // { path: '*', element: <NotFoundPage /> }
+  // A top-level catch-all if no path group matches (e.g. /foo - this will show NotFoundPage without MainLayout)
+  // Usually, the '*' inside MainLayout is sufficient for typical 404 handling.
+  // { path: '*', element: <NotFoundPage /> } 
 ]);
 
 const AppRouter = () => {
