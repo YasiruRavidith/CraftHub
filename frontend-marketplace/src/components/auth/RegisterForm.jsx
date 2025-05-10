@@ -18,14 +18,16 @@ const RegisterForm = () => {
   const onSubmit = async (data) => {
     setApiError('');
     setLoading(true);
-    const { password2, ...registrationData } = data; // Exclude password2 from data sent to API
+    //const { password2, ...registrationData } = data; // Exclude password2 from data sent to API
+    console.log("Data being sent to backend:", data); // <--- ADD THIS
     try {
-      await authRegister(registrationData);
+      await authRegister(data);
       navigate('/dashboard'); // Or to a "please verify email" page
     } catch (err) {
         let errorMessage = "Registration failed. Please try again.";
         if (err.response && err.response.data) {
             const responseData = err.response.data;
+            console.error("Backend validation errors:", responseData); // <--- LOG THIS
             // Concatenate all error messages from DRF
             errorMessage = Object.keys(responseData)
                 .map(key => `${key}: ${Array.isArray(responseData[key]) ? responseData[key].join(', ') : responseData[key]}`)

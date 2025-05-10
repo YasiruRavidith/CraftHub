@@ -6,7 +6,7 @@ const MaterialCard = ({ material }) => {
   if (!material) return null;
 
   return (
-    <div className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow text-gray-950">
       <img
         src={material.main_image_url || 'https://via.placeholder.com/300x200?text=Material'}
         alt={material.name}
@@ -19,7 +19,7 @@ const MaterialCard = ({ material }) => {
       </p>
       <Link
         to={`/materials/${material.slug}`} // Assuming slug-based routing for details
-        className="text-sm text-blue-500 hover:underline"
+        className="text-gray-950 hover:underline"
       >
         View Details
       </Link>

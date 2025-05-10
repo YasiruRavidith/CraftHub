@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Category, Material, Design, TechPack, Certification, Tag
+import os
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -71,9 +72,18 @@ class DesignAdmin(admin.ModelAdmin):
 
 @admin.register(TechPack)
 class TechPackAdmin(admin.ModelAdmin):
-    list_display = ('design', 'file', 'version', 'uploaded_at')
+    list_display = ('design', 'file_link_display', 'version', 'created_at') # Changed 'uploaded_at' to 'created_at'
     list_filter = ('design__title',)
-    search_fields = ('design__title', 'notes')
+    search_fields = ('design__title', 'notes', 'file')
+    readonly_fields = ('created_at', 'updated_at', 'file_link_display') # Add created_at and updated_at here
+
+    def file_link_display(self, obj):
+        from django.utils.html import format_html
+        if obj.file:
+            return format_html("<a href='{url}'>{name}</a>", url=obj.file.url, name=os.path.basename(obj.file.name))
+        return "No file"
+    file_link_display.short_description = "File"
+    file_link_display.admin_order_field = 'file' # Allows sorting by the file name if desired
 
 @admin.register(Certification)
 class CertificationAdmin(admin.ModelAdmin):

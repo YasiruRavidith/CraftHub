@@ -41,7 +41,7 @@ const DesignSearchPage = () => {
   };
 
   return (
-    <div className="container-mx">
+    <div className="container-mx text-gray-950">
       <h1 className="text-3xl font-bold my-6 text-gray-800">Discover Designs</h1>
        <div className="mb-6 p-4 bg-gray-50 rounded-lg shadow">
         <input type="text" placeholder="Search designs..." className="p-2 border rounded w-full md:w-1/2" />
