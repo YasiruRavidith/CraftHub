@@ -47,6 +47,7 @@ import OrderDetailPage from '../pages/orders_management/OrderDetailPage.jsx';
 
 // --- Router Configuration ---
 import PrivateRoute from './PrivateRoute.jsx';
+import CartPage from '../pages/CartPage.jsx';
 // import { ROUTE_PATHS } from '../config/routes.js'; // Optional: Using string paths directly for now
 
 const router = createBrowserRouter([
@@ -62,7 +63,8 @@ const router = createBrowserRouter([
       { path: 'community/threads/:threadSlug', element: <ForumThreadPage /> },
       // Example for portfolios
       // { path: 'portfolios/:username', element: <UserPortfoliosPage /> },
-      { path: '*', element: <NotFoundPage /> }, // Catch-all for unknown routes under MainLayout
+      { path: 'cart', element: <CartPage /> }, // Added Cart Page
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
   {

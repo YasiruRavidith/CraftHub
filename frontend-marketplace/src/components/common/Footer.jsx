@@ -9,7 +9,7 @@ const Footer = () => {
       <div className="container-mx">
         <div className="flex flex-col items-center mb-10">
           <Link to="/" className="text-3xl font-bold text-white mb-4">
-            B2BMarket
+            Craft Hub
           </Link>
           <p className="text-center max-w-md text-sm mb-6">
             Your central hub for sourcing, design, and manufacturing in the apparel industry.

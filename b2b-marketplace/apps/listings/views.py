@@ -9,6 +9,7 @@ from .permissions import IsOwnerOrReadOnly, IsSellerOrAdminOrReadOnly, IsDesigne
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.filter(parent_category__isnull=True).prefetch_related('subcategories') # Top-level categories
@@ -71,6 +72,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
     serializer_class = MaterialSerializer
     permission_classes = [IsSellerOrAdminOrReadOnly] # Adjust as needed for list vs. detail vs. owner
     lookup_field = 'slug'
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {

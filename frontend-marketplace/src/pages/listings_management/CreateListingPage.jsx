@@ -43,6 +43,11 @@ const CreateListingPage = () => {
     // ... (rest of your handleCreateListing logic remains the same) ...
     setIsLoading(true);
     setFormApiError('');
+    console.log("--- FormData received in CreateListingPage before API call ---");
+  for (let [key, value] of formData.entries()) {
+    console.log(key, value); // Check 'main_image' again
+  }
+  console.log("-------------------------------------------------------------");
     try {
       let createdListing;
       if (listingType === 'material') {

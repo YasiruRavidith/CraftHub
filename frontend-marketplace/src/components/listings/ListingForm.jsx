@@ -1,128 +1,153 @@
 // src/components/listings/ListingForm.jsx
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-// import { useNavigate } from 'react-router-dom'; // Not used directly in this component
 import Input from '../common/Input';
 import Button from '../common/Button';
-import Select from 'react-select'; // Assuming you'll install this: npm install react-select
+import Select from 'react-select';
 import categoryService from '../../services/categoryService';
 
 const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
 
 const ListingForm = ({ onSubmitForm, initialData = {}, listingType = 'material', isLoading = false, apiFormError }) => {
-  const { register, handleSubmit, control, watch, setValue, reset, formState: { errors, isDirty } } = useForm({
-    defaultValues: initialData || {}, // Ensure initialData is an object
+  const { 
+    register, 
+    handleSubmit, 
+    control, 
+    watch, 
+    setValue,
+    reset, 
+    formState: { errors, isDirty } 
+  } = useForm({
+    defaultValues: initialData || {},
   });
 
   const [imagePreview, setImagePreview] = useState(initialData?.main_image_url || initialData?.thumbnail_image_url || null);
   const [categories, setCategories] = useState([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
 
-  useEffect(() => {
-    // Reset form when initialData changes (e.g., for an edit form loading data)
-    if (initialData && Object.keys(initialData).length > 0) {
-      const currentImage = initialData.main_image_url || initialData.thumbnail_image_url;
-      reset({
-        ...initialData,
-        category_id: initialData.category?.id || initialData.category_id || '', // Handle nested category or just id
-      });
-      setImagePreview(currentImage || null);
-    } else {
-      reset({}); // Reset to empty if no initial data (for create form)
-      setImagePreview(null);
-    }
-  }, [initialData, reset]);
+  const imageFileKey = listingType === 'material' ? 'main_image_file' : 'thumbnail_image_file';
+  const watchedImageFile = watch(imageFileKey);
 
-
-  useEffect(() => {
-    const fetchCats = async () => {
-      setCategoryLoading(true);
-      try {
-        const data = await categoryService.getCategories();
-        setCategories(data.map(cat => ({ value: cat.id, label: cat.name })));
-      } catch (error) {
-        console.error("Failed to fetch categories", error);
-        // Optionally set an error state to display to the user
-      }
-      setCategoryLoading(false);
-    };
-    fetchCats();
-  }, []);
-
-  const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      // `main_image_file` is just a temporary name for react-hook-form to hold the File object
-      // The actual field name sent to backend will be 'main_image' or 'thumbnail_image'
-      setValue(listingType === 'material' ? 'main_image_file' : 'thumbnail_image_file', file, { shouldDirty: true });
-      setImagePreview(URL.createObjectURL(file));
-    } else {
-      // If file selection is cancelled or cleared
-      setValue(listingType === 'material' ? 'main_image_file' : 'thumbnail_image_file', null, { shouldDirty: true });
-      setImagePreview(initialData?.main_image_url || initialData?.thumbnail_image_url || null); // Revert to initial or null
-    }
-  };
-
-  const internalOnSubmit = (data) => {
-    const formData = new FormData();
-
-    const imageFileKey = listingType === 'material' ? 'main_image_file' : 'thumbnail_image_file';
-    const backendImageKey = listingType === 'material' ? 'main_image' : 'thumbnail_image';
-
-    if (data[imageFileKey] instanceof File) {
-      formData.append(backendImageKey, data[imageFileKey], data[imageFileKey].name);
-    }
-
-    Object.keys(data).forEach(key => {
-      if (key === imageFileKey) return; // Already handled
-
-      // Convert empty strings for number fields to null or omit them
-      // so backend doesn't try to parse "" as integer.
-      const modelField = initialData?._modelFields?.[key]; // Hypothetical: if you pass model field types
-      const value = data[key];
-
-      if (
-        (key === 'stock_quantity' || key === 'weight_gsm' || key === 'width_cm' || key === 'lead_time_days') &&
-        (value === '' || value === null || value === undefined)
-      ) {
-        // Omit if empty and optional (null=True on backend model)
-        // If backend requires null for empty optional integers, send null.
-        // For now, we omit. If your serializer expects null, then append null.
-        return; 
-      }
-      
-      if (key === 'category_id' && value && typeof value === 'object') {
-        formData.append(key, value.value); // For react-select, value is { value: 'id', label: 'name' }
-      } else if (value !== null && value !== undefined) {
-        formData.append(key, value);
-      }
-    });
-    
-    // seller_id or designer_id should be set by the backend based on request.user
-    // So, we don't explicitly add it here for CREATE operations.
-    // For UPDATE operations, it would already be part of initialData and thus in 'data'.
-
-    onSubmitForm(formData);
-  };
-
-  const isMaterial = listingType === 'material';
-  // const isDesign = listingType === 'design'; // Not used below, but good for clarity
-
+  // Moved materialUnitOptions outside the return statement
   const materialUnitOptions = [
     { value: 'm', label: 'Meter (m)' }, { value: 'kg', label: 'Kilogram (kg)' },
     { value: 'sqm', label: 'Square Meter (sqm)' }, { value: 'pcs', label: 'Pieces (pcs)' },
     { value: 'yard', label: 'Yard (yd)' }, { value: 'lb', label: 'Pound (lb)' },
   ];
 
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      const currentImageURL = initialData.main_image_url || initialData.thumbnail_image_url;
+      const categoryDefault = initialData.category 
+        ? { value: initialData.category.id, label: initialData.category.name }
+        : (initialData.category_id ? { value: initialData.category_id, label: 'Loading...' } : null) ;
+
+      reset({
+        ...initialData,
+        category_id: categoryDefault,
+      });
+      setImagePreview(currentImageURL || null);
+    } else {
+      reset({
+        unit: 'm', // Default unit for new material
+        minimum_order_quantity: 1, // Default MOQ for new material
+      });
+      setImagePreview(null);
+    }
+  }, [initialData, reset]);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      setCategoryLoading(true);
+      try {
+        const data = await categoryService.getCategories();
+        const categoryOptions = data.map(cat => ({ value: cat.id, label: cat.name }));
+        setCategories(categoryOptions);
+
+        const currentFormCategoryIdValue = control.getValues('category_id');
+        let categoryIdToMatch = null;
+
+        if (currentFormCategoryIdValue && typeof currentFormCategoryIdValue === 'object' && currentFormCategoryIdValue.value) {
+            categoryIdToMatch = currentFormCategoryIdValue.value;
+        } else if (typeof currentFormCategoryIdValue === 'string' || typeof currentFormCategoryIdValue === 'number') {
+            categoryIdToMatch = currentFormCategoryIdValue;
+        } else if (initialData?.category_id) {
+             categoryIdToMatch = initialData.category_id;
+        } else if (initialData?.category?.id) {
+            categoryIdToMatch = initialData.category.id;
+        }
+
+        if (categoryIdToMatch) {
+            const foundCat = categoryOptions.find(c => String(c.value) === String(categoryIdToMatch));
+            if (foundCat && (!currentFormCategoryIdValue || currentFormCategoryIdValue.label === 'Loading...' || currentFormCategoryIdValue.label === undefined) ) {
+                 setValue('category_id', foundCat, {shouldDirty: !!initialData?.id, shouldValidate: false });
+            }
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories", error);
+      }
+      setCategoryLoading(false);
+    };
+    fetchCats();
+  }, [initialData, control, setValue]);
+
+
+  useEffect(() => {
+    if (watchedImageFile && watchedImageFile.length > 0 && watchedImageFile[0] instanceof File) {
+      const file = watchedImageFile[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else if ((!watchedImageFile || watchedImageFile.length === 0) && (initialData?.main_image_url || initialData?.thumbnail_image_url) ) {
+      setImagePreview(initialData.main_image_url || initialData.thumbnail_image_url);
+    } else if (!watchedImageFile || watchedImageFile.length === 0) {
+        setImagePreview(null);
+    }
+  }, [watchedImageFile, initialData]);
+
+
+  const internalOnSubmit = (dataFromRHF) => {
+    const formData = new FormData();
+    const backendImageKey = listingType === 'material' ? 'main_image' : 'thumbnail_image';
+    const imageFileList = dataFromRHF[imageFileKey]; 
+
+    if (imageFileList && imageFileList.length > 0 && imageFileList[0] instanceof File) {
+      const file = imageFileList[0];
+      formData.append(backendImageKey, file, file.name);
+    }
+
+    Object.keys(dataFromRHF).forEach(key => {
+      if (key === imageFileKey) return;
+      const value = dataFromRHF[key];
+
+      if (
+        (key === 'stock_quantity' || key === 'weight_gsm' || key === 'width_cm' || key === 'lead_time_days') &&
+        (value === '' || value === null || value === undefined || (typeof value === 'string' && isNaN(parseFloat(value))) )
+      ) {
+        return; 
+      }
+      
+      if (key === 'category_id' && value && typeof value === 'object' && value.hasOwnProperty('value')) {
+        formData.append(key, value.value);
+      } else if (value !== null && value !== undefined) {
+        formData.append(key, value);
+      }
+    });
+    
+    onSubmitForm(formData);
+  };
+
   return (
     <form onSubmit={handleSubmit(internalOnSubmit)} className="space-y-6">
       {apiFormError && <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{apiFormError}</p>}
 
       <Input
-        label={<>{isMaterial ? "Material Name" : "Design Title"} <RequiredIndicator /></>}
-        id={isMaterial ? "name" : "title"}
-        {...register(isMaterial ? "name" : "title", { required: "This field is required" })}
-        error={errors[isMaterial ? "name" : "title"]}
+        label={<>{listingType === 'material' ? "Material Name" : "Design Title"} <RequiredIndicator /></>}
+        id={listingType === 'material' ? "name" : "title"}
+        {...register(listingType === 'material' ? "name" : "title", { required: "This field is required" })}
+        error={errors[listingType === 'material' ? "name" : "title"]}
       />
 
       <div>
@@ -139,7 +164,7 @@ const ListingForm = ({ onSubmitForm, initialData = {}, listingType = 'material',
       </div>
       
       <div>
-        <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="category_id_select" className="block text-sm font-medium text-gray-700 mb-1"> 
             Category <RequiredIndicator />
         </label>
         <Controller
@@ -152,32 +177,31 @@ const ListingForm = ({ onSubmitForm, initialData = {}, listingType = 'material',
                 options={categories}
                 isLoading={categoryLoading}
                 placeholder="Select a category..."
-                classNamePrefix="react-select" // For styling if you add custom react-select styles
-                className={`mt-1 react-select-container ${errors.category_id ? 'react-select-error' : ''}`}
-                inputId="category_id"
+                classNamePrefix="react-select"
+                className={`mt-1 react-select-container ${errors.category_id ? 'react-select-error border !border-red-500 rounded-md' : ''}`}
+                inputId="category_id_select"
+                isClearable
               />
             )}
         />
-        {errors.category_id && <p className="mt-1 text-xs text-red-600">{errors.category_id.message}</p>}
+        {errors.category_id && <p className="mt-1 text-xs text-red-600">{errors.category_id.message || (errors.category_id.value && "Category is required")}</p>}
       </div>
 
       <div>
-        <label htmlFor="main_image_input" className="block text-sm font-medium text-gray-700 mb-1">
-          {isMaterial ? "Main Material Image" : "Thumbnail Image"} (Optional)
+        <label htmlFor={imageFileKey} className="block text-sm font-medium text-gray-700 mb-1">
+          {listingType === 'material' ? "Main Material Image" : "Thumbnail Image"} (Optional)
         </label>
         {imagePreview && <img src={imagePreview} alt="Preview" className="w-40 h-40 object-cover mb-2 rounded-md border" />}
         <input
           type="file"
-          id="main_image_input"
-          accept="image/*"
-          {...register(isMaterial ? 'main_image_file' : 'thumbnail_image_file')} // Use RHF register
-          onChange={handleImageChange} // Still useful if you want immediate side-effects not tied to RHF's own onChange
+          id={imageFileKey}
+          accept="image/png, image/jpeg, image/gif"
+          {...register(imageFileKey)}
           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
         />
-        {/* Add error display for image if needed, RHF can validate file types/size with custom rules */}
       </div>
 
-      {isMaterial && (
+      {listingType === 'material' && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input
@@ -216,25 +240,21 @@ const ListingForm = ({ onSubmitForm, initialData = {}, listingType = 'material',
             type="number"
             step="1"
             {...register("stock_quantity", { 
-                valueAsNumber: true, 
-                min: {value: 0, message: "Stock can't be negative"},
-                validate: value => !isNaN(value) || value === null || value === '' || 'Must be a number' // Allow empty string to be omitted
+                setValueAs: v => (v === "" || v === null || v === undefined || isNaN(parseInt(v))) ? null : parseInt(v),
+                min: {value: 0, message: "Stock can't be negative"}
             })}
             error={errors.stock_quantity}
           />
           <Input label="SKU (Optional)" id="sku" {...register("sku")} error={errors.sku} />
           <Input label="Composition (e.g., 100% Cotton) (Optional)" id="composition" {...register("composition")} error={errors.composition} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="Weight (GSM, Optional)" id="weight_gsm" type="number" {...register("weight_gsm", {valueAsNumber:true, min:0, validate: value => !isNaN(value) || value === null || value === '' || 'Must be a number'})} error={errors.weight_gsm} />
-            <Input label="Width (cm, Optional)" id="width_cm" type="number" {...register("width_cm", {valueAsNumber:true, min:0, validate: value => !isNaN(value) || value === null || value === '' || 'Must be a number'})} error={errors.width_cm} />
+            <Input label="Weight (GSM, Optional)" id="weight_gsm" type="number" {...register("weight_gsm", {setValueAs: v => (v === "" || v === null || v === undefined || isNaN(parseInt(v))) ? null : parseInt(v), min:0})} error={errors.weight_gsm} />
+            <Input label="Width (cm, Optional)" id="width_cm" type="number" {...register("width_cm", {setValueAs: v => (v === "" || v === null || v === undefined || isNaN(parseInt(v))) ? null : parseInt(v), min:0})} error={errors.width_cm} />
           </div>
           <Input label="Country of Origin (Optional)" id="country_of_origin" {...register("country_of_origin")} error={errors.country_of_origin} />
-          <Input label="Lead Time (days, Optional)" id="lead_time_days" type="number" {...register("lead_time_days", {valueAsNumber:true, min:0, validate: value => !isNaN(value) || value === null || value === '' || 'Must be a number'})} error={errors.lead_time_days} />
+          <Input label="Lead Time (days, Optional)" id="lead_time_days" type="number" {...register("lead_time_days", {setValueAs: v => (v === "" || v === null || v === undefined || isNaN(parseInt(v))) ? null : parseInt(v), min:0})} error={errors.lead_time_days} />
         </>
       )}
-
-      {/* Design specific fields would go here, similar structure */}
-      {/* ... */}
       
       <div className="pt-4">
         <Button type="submit" variant="primary" className="w-full md:w-auto" isLoading={isLoading} disabled={isLoading || (!isDirty && !!initialData?.id)}>

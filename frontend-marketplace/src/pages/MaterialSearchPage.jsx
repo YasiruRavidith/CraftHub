@@ -98,8 +98,8 @@ const MaterialSearchPage = () => {
 
     return (
       <>
-        {loading && <div className="absolute top-0 left-0 w-full h-2 bg-purple-200 animate-pulse rounded-t-lg"></div>}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}>
+        {loading && <div className="absolute top-0 left-0 w-full h-2  bg-purple-200 animate-pulse rounded-t-lg"></div>}
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}>
           {materials.map(material => (
             <ProductCard key={material.id || material.slug} item={material} type="material" />
           ))}

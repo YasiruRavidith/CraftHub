@@ -10,7 +10,7 @@ const HomePage = () => {
     <div className=" bg-[url(/src/assets/AdobeStock_1182440091_Preview.jpeg)] bg-no-repeat bg-cover bg-center bg-fixed ">
       {/* Using orange-100 for a slightly softer orange background. Adjust if orange-200 is preferred. */}
       {/* The min-h calculation is a rough way to ensure content fills screen assuming combined navbar/footer height of 8rem */}
-      <div className='text-center py-10 md:py-20 min-h-[calc(100vh-2rem)] flex flex-col justify-center backdrop-blur-sm'>
+      <div className='text-center py-10 md:py-20 min-h-[calc(100vh-2rem)] flex flex-col justify-center bg-purple-800/10 backdrop-blur-sm'>
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6">
         Craft Hub
       </h1>

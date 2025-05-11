@@ -7,6 +7,7 @@ from apps.listings.serializers import MaterialSerializer, DesignSerializer # For
 from apps.listings.models import Material, Design # To fetch products
 from django.contrib.auth import get_user_model # ADD THIS
 User = get_user_model() 
+from decimal import Decimal
 
 class RFQSerializer(serializers.ModelSerializer):
     buyer = UserSerializer(read_only=True)
@@ -176,54 +177,84 @@ class OrderSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        items_data = validated_data.pop('items')
-        request = self.context.get('request')
-        buyer = request.user
-
-        # Handle order from quote
-        related_quote = validated_data.get('related_quote')
-        if related_quote:
-            if related_quote.status not in ['accepted', 'submitted']: # Or just 'accepted'
-                raise serializers.ValidationError(f"Cannot create order from quote with status '{related_quote.status}'.")
-            if related_quote.buyer != buyer:
-                raise serializers.ValidationError("This quote was not addressed to you.")
-            # Create order
-            order = Order.objects.create(buyer=buyer, related_quote=related_quote, **validated_data)
-            # Create order item from quote details
-            OrderItem.objects.create(
-                order=order,
-                custom_item_description=f"Order from Quote {related_quote.id}: {related_quote.rfq.title if related_quote.rfq else 'Direct Quote'}", # Or more specific
-                quantity=related_quote.quantity_offered or 1,
-                unit_price=related_quote.total_price / (related_quote.quantity_offered or 1), # Or just total_price as unit if quantity is 1
-                seller=related_quote.supplier
-            )
-            related_quote.status = 'ordered'
-            related_quote.save(update_fields=['status'])
-        else: # Order from cart/direct items
-            order = Order.objects.create(buyer=buyer, **validated_data)
-            order_total = 0
-            for item_data in items_data:
-                material = item_data.get('material')
-                design = item_data.get('design')
-                unit_price = item_data.get('unit_price')
-                seller = None
-
-                if material:
-                    unit_price = unit_price or material.price_per_unit
-                    seller = material.seller
-                elif design:
-                    unit_price = unit_price or design.price
-                    seller = design.designer
-                # For custom_item_description, unit_price must be provided.
-                # And seller also needs to be determined (e.g., from a pre-negotiation not captured by Quote model).
-                # This part needs more robust logic for custom items not from quotes.
-
-                if not unit_price: # Should be caught by OrderItemSerializer.validate
-                    raise serializers.ValidationError(f"Unit price missing for item: {item_data.get('custom_item_description') or material or design}")
-
-                OrderItem.objects.create(order=order, seller=seller, unit_price=unit_price, **item_data)
+        items_data = validated_data.pop('items') # Ensure items_data is present in request
         
-        order.update_total() # Recalculate and save total
+        # 'buyer' will be injected into validated_data by serializer.save(buyer=...) in perform_create
+        # OR, if not, it must be retrieved from context if it was set up that way.
+        # Let's assume 'buyer' is now in validated_data thanks to perform_create.
+        buyer = validated_data.pop('buyer', None) # Get buyer injected by perform_create
+        
+        if not buyer: # Fallback if not injected, try context (though less standard for this field)
+            request = self.context.get('request')
+            if request and hasattr(request, 'user') and request.user.is_authenticated:
+                buyer = request.user
+            else:
+                # This should not happen if permissions and perform_create are correct
+                raise serializers.ValidationError("Buyer could not be determined for the order.")
+
+        # ... rest of your create logic ...
+        # Ensure 'buyer' is passed to Order.objects.create if it's a required field and not nullable
+        related_quote = validated_data.get('related_quote') # This might be popped if not in model fields for create
+        
+        # Minimal create
+        order_fields_for_create = {}
+        if related_quote:
+            order_fields_for_create['related_quote'] = related_quote
+        if validated_data.get('shipping_address'):
+            order_fields_for_create['shipping_address'] = validated_data.get('shipping_address')
+        if validated_data.get('billing_address'):
+            order_fields_for_create['billing_address'] = validated_data.get('billing_address')
+        
+        # Create the order instance
+        order = Order.objects.create(buyer=buyer, **order_fields_for_create)
+
+        # Process items_data
+        if not items_data:
+            order.delete() # Clean up order if no items were provided
+            raise serializers.ValidationError({"items": "This field is required and cannot be empty."})
+
+        for item_data in items_data:
+            material_id = item_data.get('material_id')
+            design_id = item_data.get('design_id')
+            custom_desc = item_data.get('custom_item_description')
+            quantity = item_data.get('quantity')
+            unit_price = item_data.get('unit_price')
+            
+            resolved_seller = None
+            product_instance = None
+
+            if material_id:
+                try:
+                    product_instance = Material.objects.get(pk=material_id)
+                    resolved_seller = product_instance.seller
+                    unit_price = unit_price if unit_price is not None else product_instance.price_per_unit
+                except Material.DoesNotExist:
+                    raise serializers.ValidationError(f"Material with id {material_id} not found.")
+            elif design_id:
+                try:
+                    product_instance = Design.objects.get(pk=design_id)
+                    resolved_seller = product_instance.designer
+                    unit_price = unit_price if unit_price is not None else product_instance.price
+                except Design.DoesNotExist:
+                    raise serializers.ValidationError(f"Design with id {design_id} not found.")
+            # Add logic for custom_desc seller if applicable
+
+            if unit_price is None:
+                raise serializers.ValidationError(f"Unit price could not be determined for item.")
+            if quantity is None or int(quantity) <= 0:
+                raise serializers.ValidationError(f"Invalid quantity for item.")
+
+            OrderItem.objects.create(
+                order=order, 
+                material=product_instance if isinstance(product_instance, Material) else None,
+                design=product_instance if isinstance(product_instance, Design) else None,
+                custom_item_description=custom_desc if not product_instance else None,
+                quantity=int(quantity), 
+                unit_price=Decimal(unit_price), # Ensure Decimal
+                seller=resolved_seller
+            )
+        
+        order.update_total() # Recalculate and save total based on newly created items
         return order
 
     @transaction.atomic

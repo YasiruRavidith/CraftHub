@@ -6,6 +6,7 @@ import Loader from '../../components/common/Loader';
 import Pagination from '../../components/common/Pagination';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatCurrency } from '../../utils/formatters';
+import Button from '../../components/common/Button';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -65,6 +66,7 @@ const MyOrdersPage = () => {
                 <Button variant="primary" size="lg">Browse Products</Button>
             </Link>
           )}
+        
         </div>
       )}
 
